@@ -5,9 +5,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/didanslmn/movie-reservation-system.git/internal/pkg/logger"
 	"github.com/didanslmn/movie-reservation-system.git/internal/users/model"
-	"go.uber.org/zap"
+	"github.com/didanslmn/movie-reservation-system.git/utils"
 	"gorm.io/gorm"
 )
 
@@ -29,8 +28,8 @@ func NewUserRepository(db *gorm.DB) UserRepository {
 
 func (r *userRepository) Create(ctx context.Context, user *model.User) error {
 	if err := r.db.WithContext(ctx).Create(user).Error; err != nil {
-		logger.Log.Error("failed to create user", zap.Error(err), zap.String("email", user.Email))
-		return fmt.Errorf("failet to create user: %w", err)
+		utils.ErrorLogger.Printf("Create user failed (email: %s): %v", user.Email, err)
+		return fmt.Errorf("failed to create user: %v", err)
 	}
 	return nil
 }
@@ -39,16 +38,17 @@ func (r *userRepository) GetByEmail(ctx context.Context, email string) (*model.U
 	if email == "" {
 		return nil, fmt.Errorf("email cannot be empty")
 	}
+
 	var user model.User
 	err := r.db.WithContext(ctx).Where("email = ?", email).First(&user).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
 		}
-		logger.Log.Error("failed to get user by email", zap.Error(err), zap.String("email", email))
-		return nil, fmt.Errorf("failed to get user by email: %w", err)
+		utils.ErrorLogger.Printf("Get user by email failed (email: %s): %v", email, err)
+		return nil, fmt.Errorf("failed to get user by email: %v", err)
 	}
-	return &user, err
+	return &user, nil
 }
 
 func (r *userRepository) GetByID(ctx context.Context, id uint) (*model.User, error) {
@@ -58,18 +58,20 @@ func (r *userRepository) GetByID(ctx context.Context, id uint) (*model.User, err
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
 		}
-		logger.Log.Error("Failed to get user by ID", zap.Error(err), zap.Uint("id", id))
-		return nil, fmt.Errorf("failed to get user by ID: %w", err)
+		utils.ErrorLogger.Printf("Get user by ID failed (id: %d): %v", id, err)
+		return nil, fmt.Errorf("failed to get user by ID: %v", err)
 	}
-	return &user, err
+	return &user, nil
 }
+
 func (r *userRepository) Update(ctx context.Context, user *model.User) error {
 	if err := r.db.WithContext(ctx).Save(user).Error; err != nil {
-		logger.Log.Error("Failed to update user", zap.Error(err), zap.Uint("id", user.ID))
-		return fmt.Errorf("failed to update user: %w", err)
+		utils.ErrorLogger.Printf("Update user failed (id: %d): %v", user.ID, err)
+		return fmt.Errorf("failed to update user: %v", err)
 	}
 	return nil
 }
+
 func (r *userRepository) UpdatePassword(ctx context.Context, id uint, newPassword string) error {
 	if id == 0 {
 		return fmt.Errorf("invalid user ID")
@@ -85,9 +87,10 @@ func (r *userRepository) UpdatePassword(ctx context.Context, id uint, newPasswor
 		Error
 
 	if err != nil {
-		logger.Log.Error("failed to update password", zap.Error(err), zap.Uint("id", id))
-		return fmt.Errorf("failed to update password: %w", err)
+		utils.ErrorLogger.Printf("Update password failed (id: %d): %v", id, err)
+		return fmt.Errorf("failed to update password: %v", err)
 	}
+	utils.InfoLogger.Printf("Password updated successfully for user ID %d", id)
 
 	return nil
 }

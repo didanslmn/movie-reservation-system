@@ -6,7 +6,6 @@ import (
 	"os"
 
 	"github.com/didanslmn/movie-reservation-system.git/config"
-	"github.com/didanslmn/movie-reservation-system.git/internal/pkg/logger"
 
 	//"github.com/didanslmn/movie-reservation-system.git/internal/users/model"
 	"github.com/didanslmn/movie-reservation-system.git/router"
@@ -35,14 +34,12 @@ func main() {
 	// 	return
 	// }
 	// fmt.Println("Berhasil menambahkan user dengan ID:", newUser.ID)
-	logger.InitLogger()
-	defer logger.Log.Sync()
 
 	jwtSecret := os.Getenv("JWT_SECRET")
 	if jwtSecret == "" {
 		log.Fatalf("JWT_SECRET environment variable is not set")
 	}
-	r := router.SetupRouter(db, jwtSecret, logger.Log)
+	r := router.SetupRouter(db, jwtSecret)
 	if r == nil {
 		log.Fatalf("Failed to setup router")
 	}

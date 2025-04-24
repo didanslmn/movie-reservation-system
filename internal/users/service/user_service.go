@@ -2,15 +2,16 @@ package service
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"time"
 
 	"github.com/didanslmn/movie-reservation-system.git/internal/users/dto/request"
 	"github.com/didanslmn/movie-reservation-system.git/internal/users/dto/response"
+	"github.com/didanslmn/movie-reservation-system.git/internal/users/mapper"
 	"github.com/didanslmn/movie-reservation-system.git/internal/users/model"
 	"github.com/didanslmn/movie-reservation-system.git/internal/users/repository"
+	"github.com/didanslmn/movie-reservation-system.git/utils"
 	"github.com/golang-jwt/jwt/v5"
-	"go.uber.org/zap"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -24,63 +25,98 @@ type UserService interface {
 type userService struct {
 	userRepo  repository.UserRepository
 	jwtSecret string
-	logger    *zap.Logger
 }
 
-func NewUserService(userRepo repository.UserRepository, jwtSecret string, logger *zap.Logger) UserService {
+func NewUserService(userRepo repository.UserRepository, jwtSecret string) UserService {
 	return &userService{
 		userRepo:  userRepo,
 		jwtSecret: jwtSecret,
-		logger:    logger,
 	}
 }
 
 func (s *userService) Register(ctx context.Context, req request.RegisterRequest) (*response.AuthResponse, error) {
-	// cek user apakah sudah ada
 	existingUser, _ := s.userRepo.GetByEmail(ctx, req.Email)
 	if existingUser != nil {
-		s.logger.Warn("register: email already exists", zap.String("email", req.Email))
-		return nil, errors.New("email already registered")
+		utils.InfoLogger.Printf("register: email already exists (%s)", req.Email)
+		return nil, fmt.Errorf("email already registered: %s", req.Email)
 	}
 
-	// Hash password
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
-		s.logger.Error("register: failed to hash password", zap.Error(err))
-		return nil, err
+		utils.ErrorLogger.Printf("register: failed to hash password: %v", err)
+		return nil, fmt.Errorf("failed to hash password: %v", err)
 	}
 
-	// Create user
-	user := &model.User{
-		Name:     req.Name,
-		Email:    req.Email,
-		Password: string(hashedPassword),
-		Role:     model.RoleUser, // Default role
-	}
+	user := mapper.ToUserFromRegister(req, string(hashedPassword))
 
 	if err := s.userRepo.Create(ctx, user); err != nil {
-		s.logger.Error("register: failed to create user", zap.Error(err))
-		return nil, err
+		utils.ErrorLogger.Printf("register: failed to create user: %v", err)
+		return nil, fmt.Errorf("failed to create user: %v", err)
 	}
-	s.logger.Info("user registered successfully", zap.String("email", user.Email))
-	return s.toAuthResponse(user)
 
+	utils.InfoLogger.Printf("user registered successfully (email: %s)", user.Email)
+	return s.toAuthResponse(user)
 }
 
 func (s *userService) Login(ctx context.Context, req request.LoginRequest) (*response.AuthResponse, error) {
 	user, err := s.userRepo.GetByEmail(ctx, req.Email)
 	if err != nil || user == nil {
-		s.logger.Warn("login: invalid credentials", zap.String("email", req.Email))
-		return nil, errors.New("invalid credentials")
+		utils.InfoLogger.Printf("login: invalid credentials (email: %s)", req.Email)
+		return nil, fmt.Errorf("invalid credentials: %s", req.Email)
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password)); err != nil {
-		s.logger.Warn("login: wrong password", zap.String("email", req.Email))
-		return nil, errors.New("invalid credentials")
+		utils.InfoLogger.Printf("login: wrong password (email: %s)", req.Email)
+		return nil, fmt.Errorf("invalid credentials: %s", req.Email)
 	}
 
-	s.logger.Info("user logged in", zap.String("email", user.Email))
+	utils.InfoLogger.Printf("user logged in (email: %s)", user.Email)
 	return s.toAuthResponse(user)
+}
+
+func (s *userService) UpdateProfile(ctx context.Context, userID uint, req request.UpdateProfileRequest) (*response.AuthResponse, error) {
+	user, err := s.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		utils.ErrorLogger.Printf("update profile: failed to get user (id: %d): %v", userID, err)
+		return nil, fmt.Errorf("failed to get user with ID %d: %v", userID, err)
+	}
+
+	mapper.ApplyUpdateProfile(user, req)
+
+	if err := s.userRepo.Update(ctx, user); err != nil {
+		utils.ErrorLogger.Printf("update profile: failed to update user (id: %d): %v", user.ID, err)
+		return nil, fmt.Errorf("failed to update user with ID %d: %v", user.ID, err)
+	}
+
+	utils.InfoLogger.Printf("profile updated (id: %d)", user.ID)
+	return s.toAuthResponse(user)
+}
+
+func (s *userService) ChangePassword(ctx context.Context, userID uint, req request.ChangePasswordRequest) error {
+	user, err := s.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		utils.ErrorLogger.Printf("change password: failed to get user (id: %d): %v", userID, err)
+		return fmt.Errorf("failed to get user with ID %d: %v", userID, err)
+	}
+
+	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.OldPassword)); err != nil {
+		utils.InfoLogger.Printf("change password: incorrect old password (id: %d)", userID)
+		return fmt.Errorf("incorrect old password for user ID %d", userID)
+	}
+
+	newHashed, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
+	if err != nil {
+		utils.ErrorLogger.Printf("change password: failed to hash new password: %v", err)
+		return fmt.Errorf("failed to hash new password: %v", err)
+	}
+	mapper.ApplyChangePassword(user, string(newHashed))
+	if err := s.userRepo.UpdatePassword(ctx, user.ID, string(newHashed)); err != nil {
+		utils.ErrorLogger.Printf("change password: failed to update password: %v", err)
+		return fmt.Errorf("failed to update password for user ID %d: %v", user.ID, err)
+	}
+
+	utils.InfoLogger.Printf("password changed (id: %d)", user.ID)
+	return nil
 }
 
 func (s *userService) generateToken(user *model.User) (string, error) {
@@ -91,67 +127,17 @@ func (s *userService) generateToken(user *model.User) (string, error) {
 		"role":  user.Role,
 		"exp":   time.Now().Add(24 * time.Hour).Unix(),
 	}
-
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString([]byte(s.jwtSecret))
-}
-func (s *userService) UpdateProfile(ctx context.Context, userID uint, req request.UpdateProfileRequest) (*response.AuthResponse, error) {
-	user, err := s.userRepo.GetByID(ctx, userID)
-	if err != nil {
-		s.logger.Error("update profile: failed to get user", zap.Uint("userID", userID), zap.Error(err))
-		return nil, err
-	}
-
-	user.Name = req.Name
-
-	if err := s.userRepo.Update(ctx, user); err != nil {
-		s.logger.Error("update profile: failed to update user", zap.Uint("userID", user.ID), zap.Error(err))
-		return nil, err
-	}
-
-	s.logger.Info("profile updated", zap.Uint("userID", user.ID))
-	return s.toAuthResponse(user)
-}
-
-func (s *userService) ChangePassword(ctx context.Context, userID uint, req request.ChangePasswordRequest) error {
-	user, err := s.userRepo.GetByID(ctx, userID)
-	if err != nil {
-		s.logger.Error("change password: failed to get user", zap.Uint("userID", userID), zap.Error(err))
-		return err
-	}
-
-	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.OldPassword)); err != nil {
-		s.logger.Warn("change password: incorrect old password", zap.Uint("userID", userID))
-		return errors.New("incorrect old password")
-	}
-
-	newHashed, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
-	if err != nil {
-		s.logger.Error("change password: failed to hash new password", zap.Error(err))
-		return err
-	}
-
-	if err := s.userRepo.UpdatePassword(ctx, user.ID, string(newHashed)); err != nil {
-		s.logger.Error("change password: failed to update password", zap.Error(err))
-		return err
-	}
-
-	s.logger.Info("password changed", zap.Uint("userID", user.ID))
-	return nil
 }
 
 func (s *userService) toAuthResponse(user *model.User) (*response.AuthResponse, error) {
 	token, err := s.generateToken(user)
 	if err != nil {
-		s.logger.Error("failed to generate JWT", zap.Error(err))
-		return nil, err
+		utils.ErrorLogger.Printf("failed to generate JWT: %v", err)
+		return nil, fmt.Errorf("failed to generate JWT: %v", err)
 	}
 
-	return &response.AuthResponse{
-		ID:    user.ID,
-		Name:  user.Name,
-		Email: user.Email,
-		Role:  user.Role,
-		Token: token,
-	}, nil
+	authResp := mapper.ToAuthResponse(user, token)
+	return &authResp, nil
 }

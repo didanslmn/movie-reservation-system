@@ -23,17 +23,15 @@ import (
 	userRouter "github.com/didanslmn/movie-reservation-system.git/internal/users/router" // Perbaikan di sini
 	userService "github.com/didanslmn/movie-reservation-system.git/internal/users/service"
 	"github.com/gin-gonic/gin"
-	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
 
-func SetupRouter(db *gorm.DB, jwtSecret string, logger *zap.Logger) *gin.Engine {
-	r := gin.New()
-	r.Use(middleware.RecoveryWithLogger())
+func SetupRouter(db *gorm.DB, jwtSecret string) *gin.Engine {
+	r := gin.Default()
 
 	// === User Setup ===
 	userRepo := userRepository.NewUserRepository(db)
-	userSvc := userService.NewUserService(userRepo, jwtSecret, logger)
+	userSvc := userService.NewUserService(userRepo, jwtSecret)
 	userHdl := userHandler.NewUserHandler(userSvc)
 	authMiddleware := middleware.JWTAuthMiddleware(jwtSecret)
 

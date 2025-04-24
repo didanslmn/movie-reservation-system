@@ -9,13 +9,3 @@ type AuthResponse struct {
 	Role  model.Role `json:"role"`
 	Token string     `json:"token"`
 }
-type SuccessResponse struct {
-	Message string      `json:"message,omitempty"`
-	Data    interface{} `json:"data,omitempty"`
-}
-
-type ErrorResponse struct {
-	Code    string            `json:"code"`
-	Message string            `json:"message"`
-	Errors  map[string]string `json:"errors,omitempty"`
-}

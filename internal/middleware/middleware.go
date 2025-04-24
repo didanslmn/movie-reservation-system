@@ -3,16 +3,15 @@ package middleware
 import (
 	"context"
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 
 	"slices"
 
-	"github.com/didanslmn/movie-reservation-system.git/internal/pkg/logger"
 	"github.com/didanslmn/movie-reservation-system.git/internal/users/model"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
-	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
 
@@ -73,7 +72,7 @@ func JWTAuthMiddleware(secret string) gin.HandlerFunc {
 		c.Request = c.Request.WithContext(context.WithValue(c.Request.Context(), userContextKey, user))
 		c.Set("userID", user.ID)
 
-		logger.Log.Info("Authenticated user", zap.Uint("userID", user.ID), zap.String("email", user.Email))
+		log.Printf("[AUTH] Authenticated user ID: %d, Email: %s, Role: %s", user.ID, user.Email, user.Role)
 
 		c.Next()
 	}
@@ -88,7 +87,7 @@ func RoleBasedAccess(allowedRoles ...model.Role) gin.HandlerFunc {
 		}
 
 		if !slices.Contains(allowedRoles, user.Role) {
-			logger.Log.Warn("Access denied", zap.Uint("userID", user.ID), zap.String("role", string(user.Role)))
+			log.Printf("[ACCESS DENIED] User ID: %d, Role: %s, Allowed: %v", user.ID, user.Role, allowedRoles)
 			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "Access denied"})
 			return
 		}
@@ -103,6 +102,6 @@ func GetUserFromContext(ctx context.Context) (*model.User, bool) {
 }
 
 func logAndAbort(c *gin.Context, code int, msg string) {
-	logger.Log.Warn("Auth error", zap.Int("status", code), zap.String("path", c.Request.URL.Path), zap.String("message", msg))
+	log.Printf("[AUTH ERROR] %d %s - %s", code, c.Request.URL.Path, msg)
 	c.AbortWithStatusJSON(code, gin.H{"error": msg})
 }

@@ -20,21 +20,13 @@ func UserRoutes(rg *gin.RouterGroup, h *handler.UserHandler, jwtSecret string) {
 	protected.Use(middleware.JWTAuthMiddleware(jwtSecret))
 
 	// Routes untuk user biasa
-	userRoutes := protected.Group("/")
-	userRoutes.Use(middleware.RoleBasedAccess(model.RoleUser))
+	// Gabung user & admin dalam satu route
+	combinedRoutes := protected.Group("/")
+	combinedRoutes.Use(middleware.RoleBasedAccess(model.RoleUser, model.RoleAdmin))
 	{
-		userRoutes.GET("/profile", h.Profile)
-		userRoutes.PUT("/profile", h.UpdateProfile)
-		userRoutes.PUT("/change-password", h.ChangePassword)
+		combinedRoutes.GET("/profile", h.Profile)
+		combinedRoutes.PUT("/profile", h.UpdateProfile)
+		combinedRoutes.PUT("/change-password", h.ChangePassword)
 	}
 
-	// Routes untuk admin
-	adminRoutes := protected.Group("/admin")
-	adminRoutes.Use(middleware.RoleBasedAccess(model.RoleAdmin))
-	{
-		adminRoutes.GET("/", h.AdminDashboard)
-		adminRoutes.GET("/profile", h.Profile)
-		adminRoutes.PUT("/profile", h.UpdateProfile)
-		adminRoutes.PUT("/change-password", h.ChangePassword)
-	}
 }

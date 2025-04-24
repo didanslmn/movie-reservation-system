@@ -14,7 +14,7 @@ func SeatRouts(rg *gin.RouterGroup, h *handler.CinemaHallHandler, jwtSecret stri
 	adminRouts.Use(middleware.RoleBasedAccess(model.RoleAdmin))
 	{
 		adminRouts.POST("/", h.CreateCinemmaHall)
-		adminRouts.GET("/:id", h.GetAllCinemaHall)
+		adminRouts.GET("/", h.GetAllCinemaHall)
 		adminRouts.GET("/:id", h.GetCinemaHallByID)
 		adminRouts.PUT("/:id", h.UpdateCinemaHall)
 	}
