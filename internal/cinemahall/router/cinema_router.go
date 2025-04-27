@@ -7,13 +7,13 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func SeatRouts(rg *gin.RouterGroup, h *handler.CinemaHallHandler, jwtSecret string) {
+func CinemaHallRouts(rg *gin.RouterGroup, h *handler.CinemaHallHandler, jwtSecret string) {
 	cinemas := rg.Group("/cinemahalls")
 	adminRouts := cinemas.Group("/")
 	adminRouts.Use(middleware.JWTAuthMiddleware(jwtSecret))
 	adminRouts.Use(middleware.RoleBasedAccess(model.RoleAdmin))
 	{
-		adminRouts.POST("/", h.CreateCinemmaHall)
+		adminRouts.POST("/", h.CreateCinemaHall)
 		adminRouts.GET("/", h.GetAllCinemaHall)
 		adminRouts.GET("/:id", h.GetCinemaHallByID)
 		adminRouts.PUT("/:id", h.UpdateCinemaHall)

@@ -12,8 +12,8 @@ type ErrorResponse struct {
 }
 
 type SuccessResponse struct {
-	Message string      `json:"message"`
-	Data    interface{} `json:"data,omitempty"`
+	Message string `json:"message"`
+	Data    any    `json:"data,omitempty"`
 }
 
 func RespondWithError(c *gin.Context, code int, msg string, err error) {

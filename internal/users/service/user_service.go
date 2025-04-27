@@ -44,14 +44,14 @@ func (s *userService) Register(ctx context.Context, req request.RegisterRequest)
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
 		utils.ErrorLogger.Printf("register: failed to hash password: %v", err)
-		return nil, fmt.Errorf("failed to hash password: %v", err)
+		return nil, fmt.Errorf("failed to hash password: %w", err)
 	}
 
 	user := mapper.ToUserFromRegister(req, string(hashedPassword))
 
 	if err := s.userRepo.Create(ctx, user); err != nil {
 		utils.ErrorLogger.Printf("register: failed to create user: %v", err)
-		return nil, fmt.Errorf("failed to create user: %v", err)
+		return nil, fmt.Errorf("failed to create user: %w", err)
 	}
 
 	utils.InfoLogger.Printf("user registered successfully (email: %s)", user.Email)
@@ -78,14 +78,14 @@ func (s *userService) UpdateProfile(ctx context.Context, userID uint, req reques
 	user, err := s.userRepo.GetByID(ctx, userID)
 	if err != nil {
 		utils.ErrorLogger.Printf("update profile: failed to get user (id: %d): %v", userID, err)
-		return nil, fmt.Errorf("failed to get user with ID %d: %v", userID, err)
+		return nil, fmt.Errorf("failed to get user with ID %d: %w", userID, err)
 	}
 
 	mapper.ApplyUpdateProfile(user, req)
 
 	if err := s.userRepo.Update(ctx, user); err != nil {
 		utils.ErrorLogger.Printf("update profile: failed to update user (id: %d): %v", user.ID, err)
-		return nil, fmt.Errorf("failed to update user with ID %d: %v", user.ID, err)
+		return nil, fmt.Errorf("failed to update user with ID %d: %w", user.ID, err)
 	}
 
 	utils.InfoLogger.Printf("profile updated (id: %d)", user.ID)
@@ -96,7 +96,7 @@ func (s *userService) ChangePassword(ctx context.Context, userID uint, req reque
 	user, err := s.userRepo.GetByID(ctx, userID)
 	if err != nil {
 		utils.ErrorLogger.Printf("change password: failed to get user (id: %d): %v", userID, err)
-		return fmt.Errorf("failed to get user with ID %d: %v", userID, err)
+		return fmt.Errorf("failed to get user with ID %d: %w", userID, err)
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.OldPassword)); err != nil {
@@ -107,12 +107,12 @@ func (s *userService) ChangePassword(ctx context.Context, userID uint, req reque
 	newHashed, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
 	if err != nil {
 		utils.ErrorLogger.Printf("change password: failed to hash new password: %v", err)
-		return fmt.Errorf("failed to hash new password: %v", err)
+		return fmt.Errorf("failed to hash new password: %w", err)
 	}
 	mapper.ApplyChangePassword(user, string(newHashed))
 	if err := s.userRepo.UpdatePassword(ctx, user.ID, string(newHashed)); err != nil {
 		utils.ErrorLogger.Printf("change password: failed to update password: %v", err)
-		return fmt.Errorf("failed to update password for user ID %d: %v", user.ID, err)
+		return fmt.Errorf("failed to update password for user ID %d: %w", user.ID, err)
 	}
 
 	utils.InfoLogger.Printf("password changed (id: %d)", user.ID)
@@ -135,7 +135,7 @@ func (s *userService) toAuthResponse(user *model.User) (*response.AuthResponse, 
 	token, err := s.generateToken(user)
 	if err != nil {
 		utils.ErrorLogger.Printf("failed to generate JWT: %v", err)
-		return nil, fmt.Errorf("failed to generate JWT: %v", err)
+		return nil, fmt.Errorf("failed to generate JWT: %w", err)
 	}
 
 	authResp := mapper.ToAuthResponse(user, token)

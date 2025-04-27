@@ -28,6 +28,8 @@ import (
 
 func SetupRouter(db *gorm.DB, jwtSecret string) *gin.Engine {
 	r := gin.Default()
+	r.Use(middleware.LoggerMiddleware())
+	r.Use(middleware.RecoveryMiddleware())
 
 	// === User Setup ===
 	userRepo := userRepository.NewUserRepository(db)
@@ -63,7 +65,7 @@ func SetupRouter(db *gorm.DB, jwtSecret string) *gin.Engine {
 	userRouter.UserRoutes(Protected, userHdl, jwtSecret)
 	genreRouter.GenreRoutes(Protected, genreHdl, jwtSecret)
 	movieRouter.MovieRoutes(Protected, movieHdl, jwtSecret)
-	cinemahallRouter.SeatRouts(Protected, cinemahallHdl, jwtSecret)
+	cinemahallRouter.CinemaHallRouts(Protected, cinemahallHdl, jwtSecret)
 	seatRouter.SeatRouts(Protected, seatHdl, jwtSecret)
 
 	return r

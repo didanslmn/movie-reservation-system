@@ -90,7 +90,6 @@ func (r *userRepository) UpdatePassword(ctx context.Context, id uint, newPasswor
 		utils.ErrorLogger.Printf("Update password failed (id: %d): %v", id, err)
 		return fmt.Errorf("failed to update password: %v", err)
 	}
-	utils.InfoLogger.Printf("Password updated successfully for user ID %d", id)
 
 	return nil
 }

@@ -7,7 +7,7 @@ import (
 
 type CinemaHall struct {
 	gorm.Model
-	Name     string           `gorm:"not null;uniqeIndex"`
+	Name     string           `gorm:"not null;uniqueIndex"`
 	Capacity int              `gorm:"not null"`
 	Seat     []seatModel.Seat `gorm:"foreignKey:CinemaHallID"`
 }

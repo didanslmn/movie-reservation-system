@@ -27,3 +27,7 @@ func ToCinemaHallModel(req *request.CreateCinemaHallRequest) *model.CinemaHall {
 		Capacity: req.Capacity,
 	}
 }
+func UpdateCinemaHallModel(hall *model.CinemaHall, req *request.UpdateCinemaHallRequest) {
+	hall.Name = req.Name
+	hall.Capacity = req.Capacity
+}

@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	genreRepository "github.com/didanslmn/movie-reservation-system.git/internal/genre/repository"
 	"github.com/didanslmn/movie-reservation-system.git/internal/movie/dto/request"
@@ -10,6 +11,7 @@ import (
 	"github.com/didanslmn/movie-reservation-system.git/internal/movie/mapper"
 	"github.com/didanslmn/movie-reservation-system.git/internal/movie/model"
 	"github.com/didanslmn/movie-reservation-system.git/internal/movie/repository"
+	"github.com/didanslmn/movie-reservation-system.git/utils"
 )
 
 type MovieService interface {
@@ -36,6 +38,7 @@ func (s *movieService) CreateMovie(ctx context.Context, req request.CreateMovie)
 	// Validate genre IDs
 	exist, err := s.genreRepo.ExistsByIDs(ctx, req.GenreIDs)
 	if err != nil || !exist {
+		utils.ErrorLogger.Printf("Invalid genre IDs: %v", req.GenreIDs)
 		return nil, errors.New("invalid genre IDs")
 	}
 
@@ -49,27 +52,34 @@ func (s *movieService) CreateMovie(ctx context.Context, req request.CreateMovie)
 	}
 
 	if err := s.movieRepo.Create(ctx, &movie, req.GenreIDs); err != nil {
-		return nil, err
+		utils.ErrorLogger.Printf("Error creating movie: %v", err)
+		return nil, fmt.Errorf("failed to create movie: %w", err)
 	}
-
+	utils.InfoLogger.Printf("Successfully created movie: %s (ID: %d)", movie.Title, movie.ID)
 	return s.GetMovie(ctx, movie.ID)
 }
 
 func (s *movieService) GetMovie(ctx context.Context, id uint) (*response.Movie, error) {
 	movie, err := s.movieRepo.GetByID(ctx, id)
 	if err != nil {
-		return nil, err
+		utils.ErrorLogger.Printf("Error fetching movie (id: %d): %v", id, err)
+		return nil, fmt.Errorf("failed to get movie by ID %d: %w", id, err)
 	}
-
+	if movie == nil {
+		utils.ErrorLogger.Printf("Movie not found (id: %d): %v", id, err)
+		return nil, fmt.Errorf("movie not found: %w", err)
+	}
+	utils.InfoLogger.Printf("Successfully fetched movie (ID: %d)", id)
 	return mapper.ToMovieResponse(movie), nil
 }
 
 func (s *movieService) GetAllMovies(ctx context.Context) ([]response.Movie, error) {
 	movies, err := s.movieRepo.GetAll(ctx)
 	if err != nil {
-		return nil, err
+		utils.ErrorLogger.Printf("Failed to fetch all movies: %v", err)
+		return nil, fmt.Errorf("failed to get all movies")
 	}
-
+	utils.InfoLogger.Println("Successfully fetched all movies")
 	responses := make([]response.Movie, len(movies))
 	for i, m := range movies {
 		responses[i] = *mapper.ToMovieResponse(&m)
@@ -81,7 +91,8 @@ func (s *movieService) GetAllMovies(ctx context.Context) ([]response.Movie, erro
 func (s *movieService) UpdateMovie(ctx context.Context, id uint, req request.UpdateMovie) (*response.Movie, error) {
 	movie, err := s.movieRepo.GetByID(ctx, id)
 	if err != nil {
-		return nil, err
+		utils.ErrorLogger.Printf("Movie not found (id: %d): %v", id, err)
+		return nil, fmt.Errorf("movie not found: %w", err)
 	}
 
 	// cek field update
@@ -104,13 +115,22 @@ func (s *movieService) UpdateMovie(ctx context.Context, id uint, req request.Upd
 		movie.Rating = req.Rating
 	}
 
-	if err := s.movieRepo.Update(ctx, movie); err != nil {
-		return nil, err
+	if err := s.movieRepo.Update(ctx, movie, id); err != nil {
+		utils.ErrorLogger.Printf("Error updating movie (id: %d): %v", id, err)
+		return nil, fmt.Errorf("failed to update movie: %v", err)
 	}
-	// Update genres
+
+	utils.InfoLogger.Printf("Successfully updated movie: %s (ID: %d)", movie.Title, movie.ID)
+
 	if req.GenreIDs != nil {
+		exist, err := s.genreRepo.ExistsByIDs(ctx, req.GenreIDs)
+		if err != nil || !exist {
+			utils.ErrorLogger.Printf("Invalid genre IDs: %v", req.GenreIDs)
+			return nil, fmt.Errorf("invalid genre IDs")
+		}
 		if err := s.movieRepo.UpdateGenres(ctx, id, req.GenreIDs); err != nil {
-			return nil, err
+			utils.ErrorLogger.Printf("Error updating genres for movie (id: %d): %v", id, err)
+			return nil, fmt.Errorf("failed to update genres")
 		}
 	}
 
@@ -118,14 +138,24 @@ func (s *movieService) UpdateMovie(ctx context.Context, id uint, req request.Upd
 }
 
 func (s *movieService) DeleteMovie(ctx context.Context, id uint) error {
-	return s.movieRepo.Delete(ctx, id)
+	if err := s.movieRepo.Delete(ctx, id); err != nil {
+		utils.ErrorLogger.Printf("Error deleting movie (id: %d): %v", id, err)
+		return fmt.Errorf("failed to delete movie: %w", err)
+	}
+
+	utils.InfoLogger.Printf("Successfully deleted movie (ID: %d)", id)
+
+	return nil
 }
 
 func (s *movieService) GetMoviesByGenre(ctx context.Context, genreID uint) ([]response.Movie, error) {
 	movies, err := s.movieRepo.GetByGenre(ctx, genreID)
 	if err != nil {
-		return nil, err
+		utils.ErrorLogger.Printf("Error fetching movies by genre (genre ID: %d): %v", genreID, err)
+		return nil, fmt.Errorf("failed to get movies by genre: %w", err)
 	}
+
+	utils.InfoLogger.Printf("Successfully fetched movies for genre (ID: %d)", genreID)
 
 	responses := make([]response.Movie, len(movies))
 	for i, m := range movies {

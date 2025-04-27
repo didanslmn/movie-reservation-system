@@ -6,6 +6,7 @@ import (
 
 	"github.com/didanslmn/movie-reservation-system.git/internal/movie/dto/request"
 	"github.com/didanslmn/movie-reservation-system.git/internal/movie/service"
+	"github.com/didanslmn/movie-reservation-system.git/utils"
 	"github.com/gin-gonic/gin"
 )
 
@@ -19,95 +20,95 @@ func NewMovieHandler(service service.MovieService) *MovieHandler {
 
 func (h *MovieHandler) CreateMovie(c *gin.Context) {
 	var req request.CreateMovie
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request", "details": err.Error()})
+	if !utils.BindAndValidate(c, &req) {
+		utils.RespondWithError(c, http.StatusBadRequest, "validate failed", nil)
 		return
 	}
 
 	movie, err := h.service.CreateMovie(c.Request.Context(), req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		utils.RespondWithError(c, http.StatusInternalServerError, "Error creating movie", err)
 		return
 	}
 
-	c.JSON(http.StatusCreated, movie)
+	utils.RespondWithSuccess(c, "Movie created successfully", movie)
 }
 
 func (h *MovieHandler) GetMovie(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid movie ID"})
+		utils.RespondWithError(c, http.StatusBadRequest, "Invalid movie ID", err)
 		return
 	}
 
 	movie, err := h.service.GetMovie(c.Request.Context(), uint(id))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		utils.RespondWithError(c, http.StatusNotFound, "Movie not found", err)
 		return
 	}
 
-	c.JSON(http.StatusOK, movie)
+	utils.RespondWithSuccess(c, "Movie fetched successfully", movie)
 }
 
 func (h *MovieHandler) GetAllMovies(c *gin.Context) {
 	movies, err := h.service.GetAllMovies(c.Request.Context())
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get movies"})
+		utils.RespondWithError(c, http.StatusInternalServerError, "Failed to get movies", err)
 		return
 	}
 
-	c.JSON(http.StatusOK, movies)
+	utils.RespondWithSuccess(c, "Movies fetched successfully", movies)
 }
 
 func (h *MovieHandler) UpdateMovie(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid movie ID"})
+		utils.RespondWithError(c, http.StatusBadRequest, "Invalid movie ID", err)
 		return
 	}
 
 	var req request.UpdateMovie
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request", "details": err.Error()})
+	if !utils.BindAndValidate(c, &req) {
+		utils.RespondWithError(c, http.StatusBadRequest, "validate failed", nil)
 		return
 	}
 
 	movie, err := h.service.UpdateMovie(c.Request.Context(), uint(id), req)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		utils.RespondWithError(c, http.StatusBadRequest, "Error updating movie", err)
 		return
 	}
 
-	c.JSON(http.StatusOK, movie)
+	utils.RespondWithSuccess(c, "Movie updated successfully", movie)
 }
 
 func (h *MovieHandler) DeleteMovie(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid movie ID"})
+		utils.RespondWithError(c, http.StatusBadRequest, "Invalid movie ID", err)
 		return
 	}
 
 	if err := h.service.DeleteMovie(c.Request.Context(), uint(id)); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		utils.RespondWithError(c, http.StatusInternalServerError, "Error deleting movie", err)
 		return
 	}
 
-	c.Status(http.StatusNoContent)
+	utils.RespondWithSuccess(c, "Movie deleted successfully", nil)
 }
 
 func (h *MovieHandler) GetMoviesByGenre(c *gin.Context) {
 	genreID, err := strconv.ParseUint(c.Param("genre_id"), 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid genre ID"})
+		utils.RespondWithError(c, http.StatusBadRequest, "Invalid genre ID", err)
 		return
 	}
 
 	movies, err := h.service.GetMoviesByGenre(c.Request.Context(), uint(genreID))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get movies by genre"})
+		utils.RespondWithError(c, http.StatusInternalServerError, "Failed to get movies by genre", err)
 		return
 	}
 
-	c.JSON(http.StatusOK, movies)
+	utils.RespondWithSuccess(c, "Movies by genre fetched successfully", movies)
 }
