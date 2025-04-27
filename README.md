@@ -1,6 +1,6 @@
 # Movie Reservation System
 ini lanjutan dari movie-api (bisa dicek repo saya dengan judul movie-api) ada banyak perubahan diantaranya
-- penggunaan logger (zap)
+- penggunaan logger "log"
 - validasi menggunakan validate/v10
 - penambahan modul cinema hall dan seat
 
