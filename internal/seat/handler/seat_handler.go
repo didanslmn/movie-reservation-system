@@ -6,6 +6,7 @@ import (
 
 	"github.com/didanslmn/movie-reservation-system.git/internal/seat/dto/request"
 	"github.com/didanslmn/movie-reservation-system.git/internal/seat/service"
+	"github.com/didanslmn/movie-reservation-system.git/utils"
 	"github.com/gin-gonic/gin"
 )
 
@@ -19,78 +20,82 @@ func NewSeatHandler(service service.SeatService) *SeatHandler {
 
 func (h *SeatHandler) CreateSeat(c *gin.Context) {
 	var req request.CreateSeatRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid reuest", "details": err.Error()})
+	if ok := utils.BindAndValidate(c, &req); !ok {
+		utils.RespondWithError(c, http.StatusBadRequest, "validate failed", nil)
 		return
 	}
 	seat, err := h.service.CreateSeat(c.Request.Context(), req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		utils.RespondWithError(c, http.StatusInternalServerError, "Failed to create seat", err)
 		return
 	}
-	c.JSON(http.StatusCreated, seat)
+
+	utils.RespondWithSuccess(c, "Seat created successfully", seat)
 }
 
 func (h *SeatHandler) GetSeat(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid seat ID"})
+		utils.RespondWithError(c, http.StatusBadRequest, "Invalid seat ID", err)
 		return
 	}
 
 	seat, err := h.service.GetSeat(c.Request.Context(), uint(id))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		utils.RespondWithError(c, http.StatusNotFound, "Seat not found", err)
 		return
 	}
 
-	c.JSON(http.StatusOK, seat)
+	utils.RespondWithSuccess(c, "Seat retrieved successfully", seat)
 }
+
 func (h *SeatHandler) GetSeatsByHallID(c *gin.Context) {
 	hallID, err := strconv.ParseUint(c.Param("hall_id"), 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid hall ID"})
+		utils.RespondWithError(c, http.StatusBadRequest, "Invalid hall ID", err)
 		return
 	}
 
 	seats, err := h.service.GetByHallID(c.Request.Context(), uint(hallID))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		utils.RespondWithError(c, http.StatusInternalServerError, "Failed to retrieve seats", err)
 		return
 	}
 
-	c.JSON(http.StatusOK, seats)
+	utils.RespondWithSuccess(c, "Seats retrieved successfully", seats)
 }
+
 func (h *SeatHandler) UpdateSeat(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid seat ID"})
+		utils.RespondWithError(c, http.StatusBadRequest, "Invalid seat ID", err)
 		return
 	}
 
 	var req request.UpdateSeatRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if ok := utils.BindAndValidate(c, &req); !ok {
+		utils.RespondWithError(c, http.StatusBadRequest, "validate failed", nil)
 		return
 	}
 
 	seat, err := h.service.UpdateSeat(c.Request.Context(), uint(id), req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		utils.RespondWithError(c, http.StatusInternalServerError, "Failed to update seat", err)
 		return
 	}
 
-	c.JSON(http.StatusOK, seat)
+	utils.RespondWithSuccess(c, "Seat updated successfully", seat)
 }
+
 func (h *SeatHandler) DeleteSeat(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid seat ID"})
+		utils.RespondWithError(c, http.StatusBadRequest, "Invalid seat ID", err)
 		return
 	}
 
 	if err := h.service.DeleteSeat(c.Request.Context(), uint(id)); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		utils.RespondWithError(c, http.StatusInternalServerError, "Failed to delete seat", err)
 		return
 	}
 

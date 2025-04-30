@@ -1,0 +1,19 @@
+BEGIN;
+
+CREATE TABLE IF NOT EXISTS reservations (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    showtime_id INTEGER NOT NULL REFERENCES showtimes(id) ON DELETE CASCADE,
+    status VARCHAR(20) NOT NULL DEFAULT 'pending',
+    expired_at TIMESTAMP NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT now(),
+    updated_at TIMESTAMP NOT NULL DEFAULT now(),
+    deleted_at TIMESTAMP
+);
+CREATE TABLE IF NOT EXISTS reservation_seats (
+    id SERIAL PRIMARY KEY,
+    reservation_id INTEGER NOT NULL REFERENCES reservations(id) ON DELETE CASCADE,
+    seat_id INTEGER NOT NULL REFERENCES seats(id) ON DELETE CASCADE
+);
+
+COMMIT;

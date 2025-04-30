@@ -1,0 +1,4 @@
+BEGIN;
+DROP TABLE IF EXISTS reservations;
+DROP TABLE IF EXISTS reservation_seats
+COMMIT;

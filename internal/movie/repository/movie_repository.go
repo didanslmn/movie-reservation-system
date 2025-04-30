@@ -15,10 +15,11 @@ type MovieRepository interface {
 	Create(ctx context.Context, movie *model.Movie, genreIDs []uint) error
 	GetByID(ctx context.Context, id uint) (*model.Movie, error)
 	GetAll(ctx context.Context) ([]model.Movie, error)
-	Update(ctx context.Context, movie *model.Movie, id uint) error
+	Update(ctx context.Context, movie *model.Movie) error
 	UpdateGenres(ctx context.Context, movieID uint, genreIDs []uint) error
 	Delete(ctx context.Context, id uint) error
 	GetByGenre(ctx context.Context, genreID uint) ([]model.Movie, error)
+	ExistsByID(ctx context.Context, id uint) (bool, error)
 }
 
 type movieRepository struct {
@@ -89,29 +90,10 @@ func (r *movieRepository) GetAll(ctx context.Context) ([]model.Movie, error) {
 	return movies, nil
 }
 
-func (r *movieRepository) Update(ctx context.Context, movie *model.Movie, id uint) error {
-	var existingMovie model.Movie
-	if err := r.db.WithContext(ctx).First(&existingMovie, id).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			utils.ErrorLogger.Printf("update movie failed - not found (id:%d)", id)
-			return fmt.Errorf("movie not found (id:%d)", id)
-		}
-		utils.ErrorLogger.Printf("failed to find movie (id:%d): %v", id, err)
-		return fmt.Errorf("failed to find movie by ID: %w", err)
-	}
-	err := r.db.WithContext(ctx).
-		Model(movie).
-		Updates(map[string]any{
-			"title":        movie.Title,
-			"description":  movie.Description,
-			"duration":     movie.Duration,
-			"release_date": movie.ReleaseDate,
-			"image_url":    movie.ImageURL,
-			"rating":       movie.Rating,
-		}).Error
-	if err != nil {
-		utils.ErrorLogger.Printf("failed to update movie: %v", err)
-		return fmt.Errorf("failed to update movie: %w", err)
+func (r *movieRepository) Update(ctx context.Context, movie *model.Movie) error {
+	if err := r.db.WithContext(ctx).Save(movie).Error; err != nil {
+		utils.ErrorLogger.Printf("failed to save movie (id: %d): %v", movie.ID, err)
+		return fmt.Errorf("failed to save movie: %w", err)
 	}
 	return nil
 }
@@ -171,4 +153,12 @@ func (r *movieRepository) GetByGenre(ctx context.Context, genreID uint) ([]model
 		return nil, fmt.Errorf("failed to get movies by genre: %w", err)
 	}
 	return movies, nil
+}
+func (r *movieRepository) ExistsByID(ctx context.Context, id uint) (bool, error) {
+	var count int64
+	if err := r.db.WithContext(ctx).Model(&model.Movie{}).Where("id = ?", id).Count(&count).Error; err != nil {
+		utils.ErrorLogger.Printf("Failed to check existence of cinemahall ID %d: %v", id, err)
+		return false, fmt.Errorf("failed to check cinemahall existence: %w", err)
+	}
+	return count > 0, nil
 }

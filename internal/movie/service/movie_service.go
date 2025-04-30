@@ -35,7 +35,6 @@ func NewMovieService(movieR repository.MovieRepository, genreR genreRepository.G
 	}
 }
 func (s *movieService) CreateMovie(ctx context.Context, req request.CreateMovie) (*response.Movie, error) {
-	// Validate genre IDs
 	exist, err := s.genreRepo.ExistsByIDs(ctx, req.GenreIDs)
 	if err != nil || !exist {
 		utils.ErrorLogger.Printf("Invalid genre IDs: %v", req.GenreIDs)
@@ -89,13 +88,14 @@ func (s *movieService) GetAllMovies(ctx context.Context) ([]response.Movie, erro
 }
 
 func (s *movieService) UpdateMovie(ctx context.Context, id uint, req request.UpdateMovie) (*response.Movie, error) {
+	// Cari movie berdasarkan ID
 	movie, err := s.movieRepo.GetByID(ctx, id)
 	if err != nil {
-		utils.ErrorLogger.Printf("Movie not found (id: %d): %v", id, err)
+		utils.ErrorLogger.Printf("movie not found (id: %d): %v", id, err)
 		return nil, fmt.Errorf("movie not found: %w", err)
 	}
 
-	// cek field update
+	// Update field-field yang diinputkan
 	if req.Title != "" {
 		movie.Title = req.Title
 	}
@@ -115,25 +115,33 @@ func (s *movieService) UpdateMovie(ctx context.Context, id uint, req request.Upd
 		movie.Rating = req.Rating
 	}
 
-	if err := s.movieRepo.Update(ctx, movie, id); err != nil {
-		utils.ErrorLogger.Printf("Error updating movie (id: %d): %v", id, err)
-		return nil, fmt.Errorf("failed to update movie: %v", err)
+	// Update movie ke database
+	if err := s.movieRepo.Update(ctx, movie); err != nil {
+		utils.ErrorLogger.Printf("failed to update movie (id: %d): %v", id, err)
+		return nil, fmt.Errorf("failed to update movie: %w", err)
 	}
 
-	utils.InfoLogger.Printf("Successfully updated movie: %s (ID: %d)", movie.Title, movie.ID)
+	utils.InfoLogger.Printf("successfully updated movie: %s (id: %d)", movie.Title, movie.ID)
 
+	// Update genre jika ada perubahan genre
 	if req.GenreIDs != nil {
 		exist, err := s.genreRepo.ExistsByIDs(ctx, req.GenreIDs)
-		if err != nil || !exist {
-			utils.ErrorLogger.Printf("Invalid genre IDs: %v", req.GenreIDs)
+		if err != nil {
+			utils.ErrorLogger.Printf("failed to check genre existence: %v", err)
+			return nil, fmt.Errorf("failed to validate genres: %w", err)
+		}
+		if !exist {
+			utils.ErrorLogger.Printf("invalid genre IDs: %v", req.GenreIDs)
 			return nil, fmt.Errorf("invalid genre IDs")
 		}
+
 		if err := s.movieRepo.UpdateGenres(ctx, id, req.GenreIDs); err != nil {
-			utils.ErrorLogger.Printf("Error updating genres for movie (id: %d): %v", id, err)
-			return nil, fmt.Errorf("failed to update genres")
+			utils.ErrorLogger.Printf("failed to update genres for movie (id: %d): %v", id, err)
+			return nil, fmt.Errorf("failed to update genres: %w", err)
 		}
 	}
 
+	// Return movie terbaru
 	return s.GetMovie(ctx, id)
 }
 

@@ -16,6 +16,7 @@ type CinemaHallRepository interface {
 	GetAll(ctx context.Context) ([]model.CinemaHall, error)
 	Update(ctx context.Context, hall *model.CinemaHall, id uint) error
 	Delete(ctx context.Context, id uint) error
+	ExistsByID(ctx context.Context, id uint) (bool, error)
 }
 
 type cinemaHallRepository struct {
@@ -86,4 +87,12 @@ func (r *cinemaHallRepository) Delete(ctx context.Context, id uint) error {
 		return errors.New("cinema hall not found")
 	}
 	return nil
+}
+func (r *cinemaHallRepository) ExistsByID(ctx context.Context, id uint) (bool, error) {
+	var count int64
+	if err := r.db.WithContext(ctx).Model(&model.CinemaHall{}).Where("id = ?", id).Count(&count).Error; err != nil {
+		utils.ErrorLogger.Printf("Failed to check existence of cinemahall ID %d: %v", id, err)
+		return false, fmt.Errorf("failed to check cinemahall existence: %w", err)
+	}
+	return count > 0, nil
 }

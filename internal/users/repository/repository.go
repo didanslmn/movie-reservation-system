@@ -16,6 +16,7 @@ type UserRepository interface {
 	GetByID(ctx context.Context, id uint) (*model.User, error)
 	Update(ctx context.Context, user *model.User) error
 	UpdatePassword(ctx context.Context, id uint, newPassword string) error
+	ExistsByID(ctx context.Context, id uint) (bool, error)
 }
 
 type userRepository struct {
@@ -92,4 +93,12 @@ func (r *userRepository) UpdatePassword(ctx context.Context, id uint, newPasswor
 	}
 
 	return nil
+}
+func (r *userRepository) ExistsByID(ctx context.Context, id uint) (bool, error) {
+	var count int64
+	if err := r.db.WithContext(ctx).Model(&model.User{}).Where("id = ?", id).Count(&count).Error; err != nil {
+		utils.ErrorLogger.Printf("Failed to check existence of user ID %d: %v", id, err)
+		return false, fmt.Errorf("failed to check user existence: %w", err)
+	}
+	return count > 0, nil
 }
